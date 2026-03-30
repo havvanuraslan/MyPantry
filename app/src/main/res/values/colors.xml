@@ -1,0 +1,8 @@
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="pantry_orange">#E8A35D</color>
+    <color name="pantry_green">#A6BFA1</color>
+    <color name="pantry_brown">#4E3629</color>
+    <color name="pantry_bg">#FAFAFA</color>
+    <color name="pantry_red">#E57373</color> </resources>
