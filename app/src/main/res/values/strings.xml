@@ -6,4 +6,16 @@
     <string name="update_button">Update Your Pantry</string>
     <string name="grocery_button">Vıew Grocery Lıst</string>
     <string name="recipes_button">Explore Recıpes</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+
+    <string-array name="unit_options">
+        <item>Pieces (pcs)</item>
+        <item>Kg</item>
+        <item>Grams (g)</item>
+        <item>Liters (L)</item>
+        <item>Milliliters (ml)</item>
+        <item>Package</item>
+        <item>Bunch</item>
+    </string-array>
 </resources>

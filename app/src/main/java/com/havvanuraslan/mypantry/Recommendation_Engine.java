@@ -15,9 +15,6 @@ import java.util.concurrent.Executors;
 
 public class Recommendation_Engine {
 
-
-
-
     public interface OnRecommendationsReady {
         void onSuccess(List<RecipeScore> recommendedRecipes);
         void onError(String message);
@@ -38,8 +35,8 @@ public class Recommendation_Engine {
         }
     }
 
-    public void findBestRecipes(Context context, List<String> userPantry, int topN, OnRecommendationsReady callback) {
 
+    public void findBestRecipes(Context context, List<String> userPantry, int topN, OnRecommendationsReady callback) {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -47,78 +44,109 @@ public class Recommendation_Engine {
             try {
                 Food2VecEngine aiEngine = Food2VecEngine.getInstance(context);
                 Recipe_Dao recipeDao = Recipe_Database.getDbInstance(context).recipeDao();
+                PantryStrategist strategist = new PantryStrategist();
 
-                // 1. Kiler Vektörü Hesaplama (Kullanıcının profili)
-                double[] pantryVector = new double[50];
-                int validWordCount = 0;
-
-                for (String ingredient : userPantry) {
-                    double[] vec = aiEngine.getVector(ingredient.toLowerCase().trim());
-                    if (vec != null) {
-                        for (int i = 0; i < 50; i++) pantryVector[i] += vec[i];
-                        validWordCount++;
-                    }
-                }
-
-                if (validWordCount == 0) {
-                    mainHandler.post(() -> callback.onError("Kilerdeki malzemeler yapay zeka tarafından tanınmadı!"));
+                double[] pantryVector = calculatePantryVector(aiEngine, userPantry);
+                if (pantryVector == null) {
+                    mainHandler.post(() -> callback.onError("Pantry ingredients were not recognized by the AI!"));
                     return;
                 }
 
-                for (int i = 0; i < 50; i++) pantryVector[i] /= validWordCount;
-
-                // --- 2. HIZLI ÖN ELEME (CANDIDATE GENERATION) ---
-                // 200.000 tarifi taramak yerine, sadece bizim malzemelerimizi içerenleri topluyoruz.
-                // Aynı tarif birden fazla kez gelmesin diye ID'ye göre Map (Sözlük) kullanıyoruz.
                 Map<Integer, Recipe_Entity> candidatePool = new HashMap<>();
+                String bestIngredient = strategist.getBestFilterIngredient(userPantry);
+                if (bestIngredient == null && !userPantry.isEmpty()) bestIngredient = userPantry.get(0);
 
-                for (String ingredient : userPantry) {
-                    String cleanIng = ingredient.toLowerCase().trim();
-                    List<Recipe_Entity> matches = recipeDao.getCandidateRecipes(cleanIng);
-                    for (Recipe_Entity recipe : matches) {
-                        candidatePool.put(recipe.id, recipe); // ID ile ekle (Kopya olmaz)
-                    }
+                if (bestIngredient != null) {
+                    List<Recipe_Entity> matches = recipeDao.getCandidateRecipes(bestIngredient.toLowerCase().trim());
+                    for (Recipe_Entity recipe : matches) candidatePool.put(recipe.id, recipe);
                 }
 
-                // Eğer kilerdeki şeylerden hiçbir sonuç çıkmadıysa hata dön
                 if (candidatePool.isEmpty()) {
                     mainHandler.post(() -> callback.onSuccess(new ArrayList<>()));
                     return;
                 }
 
-                // --- 3. YAPAY ZEKA İLE PUANLAMA VE SIRALAMA (RANKING) ---
-                // Artık elimizde 200.000 değil, sadece mantıklı olan 5.000 - 10.000 arası tarif var!
                 PriorityQueue<RecipeScore> topRecipesQueue = new PriorityQueue<>(topN);
-
                 for (Recipe_Entity recipe : candidatePool.values()) {
-                    if (recipe.recipeVector != null && !recipe.recipeVector.isEmpty()) {
-                        double[] recipeVector = parseVectorString(recipe.recipeVector);
-                        double similarity = aiEngine.calculateCosineSimilarity(pantryVector, recipeVector);
+                    syncFavoriteState(recipe);
 
-                        // Benzerlik %40'tan büyükse değerlendirmeye al
+                    if (recipe.recipe_vector != null && !recipe.recipe_vector.isEmpty()) {
+                        double similarity = aiEngine.calculateCosineSimilarity(pantryVector, parseVectorString(recipe.recipe_vector));
                         if (similarity > 0.40) {
                             topRecipesQueue.offer(new RecipeScore(recipe, similarity * 100));
-
-                            if (topRecipesQueue.size() > topN) {
-                                topRecipesQueue.poll();
-                            }
+                            if (topRecipesQueue.size() > topN) topRecipesQueue.poll();
                         }
                     }
                 }
 
-                // Sonuçları büyükten küçüğe sırala
                 List<RecipeScore> finalResults = new ArrayList<>(topRecipesQueue);
-                Collections.reverse(finalResults);
-
+                Collections.sort(finalResults, Collections.reverseOrder());
                 mainHandler.post(() -> callback.onSuccess(finalResults));
 
             } catch (Exception e) {
-                mainHandler.post(() -> callback.onError("Hesaplama Hatası: " + e.getMessage()));
+                mainHandler.post(() -> callback.onError("AI Calculation Error: " + e.getMessage()));
+            } finally {
+                executor.shutdown();
             }
         });
     }
 
+
+    public void calculateScoresForSpecificList(Context context, List<Recipe_Entity> recipes, List<String> userPantry, OnRecommendationsReady callback) {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Handler mainHandler = new Handler(Looper.getMainLooper());
+
+        executor.execute(() -> {
+            try {
+                Food2VecEngine aiEngine = Food2VecEngine.getInstance(context);
+                double[] pantryVector = calculatePantryVector(aiEngine, userPantry);
+
+                List<RecipeScore> results = new ArrayList<>();
+
+                for (Recipe_Entity recipe : recipes) {
+                    syncFavoriteState(recipe);
+
+                    if (pantryVector != null && recipe.recipe_vector != null && !recipe.recipe_vector.isEmpty()) {
+                        double similarity = aiEngine.calculateCosineSimilarity(pantryVector, parseVectorString(recipe.recipe_vector));
+                        results.add(new RecipeScore(recipe, similarity * 100));
+                    } else {
+                        results.add(new RecipeScore(recipe, 0.0));
+                    }
+                }
+
+                Collections.sort(results, Collections.reverseOrder());
+                mainHandler.post(() -> callback.onSuccess(results));
+
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onError("Scoring Error: " + e.getMessage()));
+            } finally {
+                executor.shutdown();
+            }
+        });
+    }
+
+
+    private double[] calculatePantryVector(Food2VecEngine aiEngine, List<String> userPantry) {
+        double[] pantryVector = new double[50];
+        int validWordCount = 0;
+        for (String ingredient : userPantry) {
+            double[] vec = aiEngine.getVector(ingredient.toLowerCase().trim());
+            if (vec != null) {
+                for (int i = 0; i < 50; i++) pantryVector[i] += vec[i];
+                validWordCount++;
+            }
+        }
+        if (validWordCount == 0) return null;
+        for (int i = 0; i < 50; i++) pantryVector[i] /= validWordCount;
+        return pantryVector;
+    }
+
+    private void syncFavoriteState(Recipe_Entity recipe) {
+        recipe.isFavorite = (recipe.favorite_recipe != null && recipe.favorite_recipe == 1);
+    }
+
     private double[] parseVectorString(String vectorString) {
+        if (vectorString == null) return new double[50];
         String[] parts = vectorString.split(",");
         double[] vector = new double[50];
         for (int i = 0; i < parts.length && i < 50; i++) {

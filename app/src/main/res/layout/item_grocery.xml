@@ -20,17 +20,35 @@
             android:id="@+id/cbBought"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:buttonTint="@color/pantry_orange" /> <TextView
-        android:id="@+id/tvName"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:text="Milk"
-        android:textSize="18sp"
-        android:textColor="@color/pantry_brown"
-        android:textStyle="bold"
-        android:fontFamily="sans-serif-medium"
-        android:layout_marginStart="8dp"/>
+            android:buttonTint="@color/pantry_orange" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="8dp">
+
+            <TextView
+                android:id="@+id/tvName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Milk"
+                android:textSize="18sp"
+                android:textColor="@color/pantry_brown"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-medium" />
+
+            <TextView
+                android:id="@+id/tvQuantity"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Qty: 1.5 Liters"
+                android:textSize="14sp"
+                android:textColor="#757575"
+                android:layout_marginTop="2dp" />
+
+        </LinearLayout>
 
         <ImageButton
             android:id="@+id/btnDelete"

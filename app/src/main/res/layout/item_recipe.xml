@@ -19,17 +19,54 @@
             android:src="@android:drawable/ic_menu_gallery"
             app:layout_constraintTop_toTopOf="parent" />
 
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cvFavorite"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="12dp"
+            app:cardBackgroundColor="#CCFFFFFF"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="2dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/ivFavorite"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="8dp"
+                android:src="@android:drawable/btn_star_big_off"
+                android:contentDescription="Add to favorites" />
+        </androidx.cardview.widget.CardView>
+
         <View
+            android:id="@+id/textBgOverlay"
             android:layout_width="match_parent"
-            android:layout_height="60dp"
+            android:layout_height="0dp"
             android:background="#99000000"
+            app:layout_constraintTop_toTopOf="@+id/tvRecipeTime"
             app:layout_constraintBottom_toBottomOf="@+id/ivRecipe" />
+
+        <TextView
+            android:id="@+id/tvRecipeTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="12dp"
+            android:paddingTop="8dp"
+            android:text="⏱️ 15 min"
+            android:textColor="#E0E0E0"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toTopOf="@+id/tvRecipeName"
+            app:layout_constraintStart_toStartOf="parent" />
 
         <TextView
             android:id="@+id/tvRecipeName"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:padding="12dp"
+            android:paddingHorizontal="12dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="12dp"
             android:text="Recipe Name"
             android:textColor="@android:color/white"
             android:textSize="18sp"

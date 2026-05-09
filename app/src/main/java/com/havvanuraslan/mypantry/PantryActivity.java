@@ -2,9 +2,11 @@ package com.havvanuraslan.mypantry;
 
 import android.os.Bundle;
 import android.view.View;
+import android.widget.ArrayAdapter; // EKLENDİ
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.Spinner; // EKLENDİ
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,9 +24,8 @@ public class PantryActivity extends AppCompatActivity {
     private RecyclerView recyclerView;
     private PantryAdapter adapter;
     private AppDatabase db;
-    private List<PantryItem> items; // Listeyi sınıf seviyesinde tutuyoruz
+    private List<PantryItem> items;
 
-    // UI Elemanları
     private FloatingActionButton fabAdd;
     private TextView tvEmptyState;
     private ImageButton btnBack;
@@ -34,20 +35,16 @@ public class PantryActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_pantry);
 
-        // 1. Veritabanını Başlat
         db = AppDatabase.getDbInstance(this.getApplicationContext());
 
-        // 2. UI Bağlantıları
         recyclerView = findViewById(R.id.rvPantryList);
         fabAdd = findViewById(R.id.fabAdd);
         tvEmptyState = findViewById(R.id.tvEmptyState);
         btnBack = findViewById(R.id.btnBack);
 
-        // 3. Listeyi Kur
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         loadPantryList();
 
-        // 4. Buton Tıklamaları
         fabAdd.setOnClickListener(v -> showAddItemDialog());
         if (btnBack != null) {
             btnBack.setOnClickListener(v -> finish());
@@ -55,10 +52,8 @@ public class PantryActivity extends AppCompatActivity {
     }
 
     private void loadPantryList() {
-        // Verileri çekip sınıf seviyesindeki değişkene atıyoruz
         items = db.pantryDao().getAllItems();
 
-        // Boş Liste Kontrolü
         if (items.isEmpty()) {
             if (tvEmptyState != null) tvEmptyState.setVisibility(View.VISIBLE);
             recyclerView.setVisibility(View.GONE);
@@ -67,43 +62,55 @@ public class PantryActivity extends AppCompatActivity {
             recyclerView.setVisibility(View.VISIBLE);
         }
 
-        // --- DÜZELTİLEN KISIM: Adapter Bağlantısı ---
         adapter = new PantryAdapter(items, new PantryAdapter.OnItemActionListener() {
             @Override
             public void onDelete(int position) {
-                // Pozisyona göre öğeyi bul ve sil
                 PantryItem itemToDelete = items.get(position);
                 db.pantryDao().delete(itemToDelete);
-                loadPantryList(); // Listeyi yenile
+                loadPantryList();
                 Toast.makeText(PantryActivity.this, "Item deleted", Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onIncrease(int position) {
-                // Miktarı artır
                 PantryItem item = items.get(position);
-                item.quantity += 1; // Miktarı 1 artır
-                db.pantryDao().update(item); // Veritabanını güncelle
-                loadPantryList(); // Listeyi yenile
+                double step = getStepSize(item.getUnit());
+
+                // Add the step and round to 1 decimal place to prevent floating-point errors (e.g., 3.10000000000004)
+                double newQty = Math.round((item.getQuantity() + step) * 10.0) / 10.0;
+
+                item.setQuantity(newQty);
+                db.pantryDao().update(item);
+                loadPantryList();
             }
 
             @Override
             public void onDecrease(int position) {
-                // Miktarı azalt
                 PantryItem item = items.get(position);
-                if (item.quantity > 1) {
-                    item.quantity -= 1; // Miktarı 1 azalt
+                double step = getStepSize(item.getUnit());
+
+                double newQty = Math.round((item.getQuantity() - step) * 10.0) / 10.0;
+
+                if (newQty > 0) { // En az 0.1 veya 1.0'a kadar düşebilmeli
+                    item.setQuantity(newQty);
                     db.pantryDao().update(item);
                     loadPantryList();
                 } else {
-                    // Miktar 1 ise kullanıcıya silmek ister misin diye sorabiliriz veya direkt silebiliriz
-                    // Şimdilik 1'in altına düşürmeyelim
-                    Toast.makeText(PantryActivity.this, "Minimum quantity is 1", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(PantryActivity.this, "Minimum quantity reached", Toast.LENGTH_SHORT).show();
                 }
             }
         });
 
         recyclerView.setAdapter(adapter);
+    }
+
+    private double getStepSize(String unit) {
+        if (unit == null) return 1.0;
+
+        if (unit.contains("pcs") || unit.contains("Package") || unit.contains("Bunch")) {
+            return 1.0;
+        }
+        return 0.1;
     }
 
     private void showAddItemDialog() {
@@ -118,15 +125,28 @@ public class PantryActivity extends AppCompatActivity {
 
         EditText etName = view.findViewById(R.id.etItemName);
         EditText etQty = view.findViewById(R.id.etQuantity);
+        Spinner spinnerUnit = view.findViewById(R.id.spinnerUnit);
         Button btnAdd = view.findViewById(R.id.btnAdd);
-        Button btnCancel = view.findViewById(R.id.btnCancel);
+        TextView btnCancel = view.findViewById(R.id.btnCancel);
+
+        ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(
+                this,
+                R.array.unit_options,
+                android.R.layout.simple_spinner_item
+        );
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerUnit.setAdapter(spinnerAdapter);
 
         btnAdd.setOnClickListener(v -> {
             String name = etName.getText().toString().trim();
             String qtyStr = etQty.getText().toString().trim();
 
             if (!name.isEmpty() && !qtyStr.isEmpty()) {
-                PantryItem newItem = new PantryItem(name, Integer.parseInt(qtyStr));
+                double quantity = Double.parseDouble(qtyStr);
+                String selectedUnit = spinnerUnit.getSelectedItem().toString();
+
+                PantryItem newItem = new PantryItem(name, quantity, selectedUnit);
+
                 db.pantryDao().insert(newItem);
                 loadPantryList();
                 dialog.dismiss();

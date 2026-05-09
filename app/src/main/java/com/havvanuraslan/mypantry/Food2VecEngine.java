@@ -12,22 +12,20 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Singleton Tasarım Deseni ile oluşturulmuş Cihaz İçi (On-Device) Yapay Zeka Motoru.
- * JSON dosyasındaki vektörleri RAM'e yükler ve Kosinüs Benzerliği hesaplamalarını yapar.
+ * An on-device AI engine built with the Singleton Design Pattern.
+ * It loads vectors from a JSON file into RAM and performs cosine similarity calculations.
  */
 public class Food2VecEngine {
 
     private static Food2VecEngine instance;
     private Map<String, double[]> wordVectors;
-    private final int VECTOR_SIZE = 50; // Python'da 100 boyutlu eğitmiştik (vector_size=100)
+    private final int VECTOR_SIZE = 50;
 
-    // Private Constructor (Singleton Pattern - Dışarıdan new ile oluşturulamaz)
     private Food2VecEngine(Context context) {
         wordVectors = new HashMap<>();
         loadEmbeddings(context);
     }
 
-    // Sistemin her yerinden bu motora tek bir instance üzerinden erişeceğiz
     public static synchronized Food2VecEngine getInstance(Context context) {
         if (instance == null) {
             instance = new Food2VecEngine(context.getApplicationContext());
@@ -35,7 +33,6 @@ public class Food2VecEngine {
         return instance;
     }
 
-    // 1. JSON dosyasını okuyup HashMap'e (Sözlüğe) atma işlemi
     private void loadEmbeddings(Context context) {
         try {
             InputStream is = context.getAssets().open("Food2Vec_Embeddings.json");
@@ -47,7 +44,6 @@ public class Food2VecEngine {
             String jsonString = new String(buffer, StandardCharsets.UTF_8);
             JSONObject jsonObject = new JSONObject(jsonString);
 
-            // Tüm malzemeleri ve matematiksel vektörlerini haritaya kaydet
             for (java.util.Iterator<String> it = jsonObject.keys(); it.hasNext(); ) {
                 String word = it.next();
                 JSONArray vectorArray = jsonObject.getJSONArray(word);
@@ -57,19 +53,17 @@ public class Food2VecEngine {
                 }
                 wordVectors.put(word, vector);
             }
-            Log.d("Food2VecEngine", "Model başarıyla yüklendi! Kelime sayısı: " + wordVectors.size());
+            Log.d("Food2VecEngine", "Model loaded successfully! The number of words: " + wordVectors.size());
 
         } catch (Exception e) {
-            Log.e("Food2VecEngine", "JSON Okuma Hatası: " + e.getMessage());
+            Log.e("Food2VecEngine", "JSON Read Error: " + e.getMessage());
         }
     }
 
-    // 2. Bir malzemenin vektörünü getiren metod
     public double[] getVector(String ingredient) {
         return wordVectors.get(ingredient.toLowerCase().trim());
     }
 
-    // 3. İki vektör (malzeme) arasındaki Kosinüs Benzerliğini hesaplayan matematiksel motor
     public double calculateCosineSimilarity(double[] vectorA, double[] vectorB) {
         if (vectorA == null || vectorB == null) return 0.0;
 

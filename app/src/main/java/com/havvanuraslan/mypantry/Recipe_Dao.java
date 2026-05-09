@@ -2,28 +2,33 @@ package com.havvanuraslan.mypantry;
 
 import androidx.room.Dao;
 import androidx.room.Query;
+import androidx.room.Update;
 import java.util.List;
 
 @Dao
 public interface Recipe_Dao {
 
-    // 1. RAM'i koruyan sayfalama metodu
     @Query("SELECT * FROM recipes LIMIT :limit OFFSET :offset")
     List<Recipe_Entity> getRecipesInBatches(int limit, int offset);
 
-    // 2. Toplam sayıyı getiren metot
     @Query("SELECT COUNT(id) FROM recipes")
     int getTotalRecipeCount();
 
     @Query("SELECT * FROM recipes WHERE id = :recipeId LIMIT 1")
     Recipe_Entity getRecipeById(int recipeId);
 
-    // DİKKAT: Hata veren kısım burasıydı! Üzerine @Query ekledik.
-    // (Gerçi yeni yazdığımız RecommendationEngine sınıfında artık
-    // bunu kullanmıyoruz ama kodda duracaksa mutlaka etiketi olmalı).
     @Query("SELECT * FROM recipes")
     List<Recipe_Entity> getAllRecipes();
-    // Malzeme ismine göre SQL ile hızlıca ön eleme (Pre-filtering) yapar
+
     @Query("SELECT * FROM recipes WHERE ingredients LIKE '%' || :ingredient || '%' LIMIT 5000")
     List<Recipe_Entity> getCandidateRecipes(String ingredient);
+
+    @Query("SELECT * FROM recipes WHERE favorite_recipe = 1")
+    List<Recipe_Entity> getFavoriteRecipes();
+
+    @Update
+    void updateRecipe(Recipe_Entity recipe);
+
+    @Query("UPDATE recipes SET favorite_recipe = :isFavorite WHERE id = :recipeId")
+    void updateFavoriteStatus(int recipeId, int isFavorite);
 }

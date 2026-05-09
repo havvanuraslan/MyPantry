@@ -7,7 +7,9 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
 import java.util.List;
+import java.util.Locale; // Formatlama için eklendi
 
 public class PantryAdapter extends RecyclerView.Adapter<PantryAdapter.ViewHolder> {
 
@@ -37,11 +39,38 @@ public class PantryAdapter extends RecyclerView.Adapter<PantryAdapter.ViewHolder
         PantryItem item = items.get(position);
 
         holder.tvName.setText(item.getName());
-        holder.tvQuantity.setText("Qty: " + item.getQuantity());
 
-        holder.btnDelete.setOnClickListener(v -> listener.onDelete(holder.getAdapterPosition()));
-        holder.btnPlus.setOnClickListener(v -> listener.onIncrease(holder.getAdapterPosition()));
-        holder.btnMinus.setOnClickListener(v -> listener.onDecrease(holder.getAdapterPosition()));
+        double qty = item.getQuantity();
+        String unit = item.getUnit() != null ? item.getUnit() : "";
+
+        boolean isDiscrete = unit.contains("pcs") || unit.contains("Package") || unit.contains("Bunch");
+
+        if (isDiscrete) {
+            holder.tvQuantity.setText("Qty: " + (int) qty + " " + unit);
+        } else {
+            holder.tvQuantity.setText(String.format(Locale.US, "Qty: %.1f %s", qty, unit));
+        }
+
+        holder.btnDelete.setOnClickListener(v -> {
+            int currentPosition = holder.getAdapterPosition();
+            if (currentPosition != RecyclerView.NO_POSITION) {
+                listener.onDelete(currentPosition);
+            }
+        });
+
+        holder.btnPlus.setOnClickListener(v -> {
+            int currentPosition = holder.getAdapterPosition();
+            if (currentPosition != RecyclerView.NO_POSITION) {
+                listener.onIncrease(currentPosition);
+            }
+        });
+
+        holder.btnMinus.setOnClickListener(v -> {
+            int currentPosition = holder.getAdapterPosition();
+            if (currentPosition != RecyclerView.NO_POSITION) {
+                listener.onDecrease(currentPosition);
+            }
+        });
     }
 
     @Override

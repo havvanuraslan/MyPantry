@@ -11,14 +11,14 @@ import java.util.List;
 @Dao
 public interface PantryDao {
     @Insert
-    void insert(PantryItem item); // Ekleme
+    void insert(PantryItem item);
 
     @Delete
-    void delete(PantryItem item); // Silme
+    void delete(PantryItem item);
 
     @Update
-    void update(PantryItem item); // Güncelleme (+/- butonları için)
+    void update(PantryItem item);
 
     @Query("SELECT * FROM pantry_items ORDER BY id DESC")
-    List<PantryItem> getAllItems(); // Hepsini getir
+    List<PantryItem> getAllItems();
 }

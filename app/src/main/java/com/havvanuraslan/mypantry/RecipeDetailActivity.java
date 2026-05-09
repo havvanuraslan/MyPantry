@@ -13,6 +13,11 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -26,24 +31,26 @@ public class RecipeDetailActivity extends AppCompatActivity {
     private LinearLayout llSubstitutionTip;
     private TextView tvSubstitutionText;
     private ProgressBar progressBar;
-    private ImageButton btnBack;
+    private ImageButton btnBack, btnFavorite;
 
-    // --- YENİ ÇEVRİMDIŞI (OFFLINE) MİMARİ DEĞİŞKENLERİ ---
     private Recipe_Dao recipeDao;
     private AppDatabase db;
     private SubstitutionEngine subEngine;
+    private Recipe_Entity currentRecipe;
+    private FirebaseAuth mAuth;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_recipe_detail);
 
-        // Başlatmalar (Kendi Veritabanlarımız)
+        // Initialization
+        mAuth = FirebaseAuth.getInstance();
         recipeDao = Recipe_Database.getDbInstance(getApplicationContext()).recipeDao();
         db = AppDatabase.getDbInstance(getApplicationContext());
         subEngine = new SubstitutionEngine();
 
-        // UI Bağlantıları
+        // UI Bindings
         ivRecipeImage = findViewById(R.id.ivRecipeImage);
         tvRecipeName = findViewById(R.id.tvRecipeName);
         tvCategory = findViewById(R.id.tvCategory);
@@ -53,76 +60,117 @@ public class RecipeDetailActivity extends AppCompatActivity {
         tvSubstitutionText = findViewById(R.id.tvSubstitutionText);
         progressBar = findViewById(R.id.progressBar);
         btnBack = findViewById(R.id.btnBack);
+        btnFavorite = findViewById(R.id.btnFavorite);
 
         if (btnBack != null) {
             btnBack.setOnClickListener(v -> finish());
         }
 
-        // Tıklanan tarifin ID'sini (Artık Integer) alıyoruz
         int recipeId = getIntent().getIntExtra("RECIPE_ID", -1);
-
         if (recipeId != -1) {
             fetchRecipeDetails(recipeId);
         } else {
             Toast.makeText(this, "Error: No Recipe ID found", Toast.LENGTH_SHORT).show();
             finish();
         }
+
+        if (btnFavorite != null) {
+            btnFavorite.setOnClickListener(v -> toggleFavorite());
+        }
     }
 
     private void fetchRecipeDetails(int recipeId) {
         progressBar.setVisibility(View.VISIBLE);
-        llSubstitutionTip.setVisibility(View.GONE);
-
-        // Room veritabanı işlemleri UI'ı dondurmasın diye arka planda (Background Thread) yapıyoruz
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Handler mainHandler = new Handler(Looper.getMainLooper());
 
         executor.execute(() -> {
             try {
-                // SQLite'dan tek bir tarifi çek
-                Recipe_Entity recipe = recipeDao.getRecipeById(recipeId);
+                currentRecipe = recipeDao.getRecipeById(recipeId);
 
-                // Sonucu ekrana basmak için Ana Thread'e dön
+                // Initialize isFavorite based on SQLite's favorite_recipe (1 = true, 0 = false)
+                if (currentRecipe != null) {
+                    currentRecipe.isFavorite = (currentRecipe.favorite_recipe != null && currentRecipe.favorite_recipe == 1);
+                }
+
                 mainHandler.post(() -> {
                     progressBar.setVisibility(View.GONE);
-                    if (recipe != null) {
-                        displayRecipe(recipe);
+                    if (currentRecipe != null) {
+                        displayRecipe(currentRecipe);
+                        updateFavoriteIcon();
                     } else {
-                        Toast.makeText(this, "Recipe not found in local database", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Recipe details could not be loaded", Toast.LENGTH_SHORT).show();
                     }
                 });
             } catch (Exception e) {
                 mainHandler.post(() -> {
                     progressBar.setVisibility(View.GONE);
-                    Toast.makeText(this, "Database Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
             }
         });
     }
 
+    private void toggleFavorite() {
+        if (currentRecipe == null) return;
+
+        currentRecipe.isFavorite = !currentRecipe.isFavorite;
+        currentRecipe.favorite_recipe = currentRecipe.isFavorite ? 1 : 0;
+
+        updateFavoriteIcon();
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.execute(() -> {
+            recipeDao.updateFavoriteStatus(currentRecipe.id, currentRecipe.favorite_recipe);
+        });
+
+        saveFavoriteToFirebase(currentRecipe);
+
+        String msg = currentRecipe.isFavorite ? "Added to favorites" : "Removed from favorites";
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateFavoriteIcon() {
+        if (btnFavorite != null && currentRecipe != null) {
+            btnFavorite.setImageResource(currentRecipe.isFavorite ?
+                    android.R.drawable.btn_star_big_on : android.R.drawable.btn_star_big_off);
+        }
+    }
+
+    private void saveFavoriteToFirebase(Recipe_Entity recipe) {
+        FirebaseUser user = mAuth.getCurrentUser();
+        if (user != null) {
+            DatabaseReference favRef = FirebaseDatabase.getInstance()
+                    .getReference("users")
+                    .child(user.getUid())
+                    .child("favorites")
+                    .child(String.valueOf(recipe.id));
+
+            if (recipe.isFavorite) {
+                favRef.setValue(true);
+            } else {
+                favRef.removeValue();
+            }
+        }
+    }
+
     private void displayRecipe(Recipe_Entity recipe) {
-        // 1. İsimlendirme ve Görsellik
         tvRecipeName.setText(capitalizeWords(recipe.name));
-
-        // Kategori yerine Hazırlanma Süresi ve Etiketleri gösteriyoruz
-        String info = "⏱️ Takes " + recipe.minutes + " minutes\nTags: " +
-                (recipe.tags != null ? recipe.tags : "");
+        String info = "⏱️ Ready in " + recipe.minutes + " minutes\nTags: " +
+                (recipe.tags != null ? recipe.tags : "General");
         tvCategory.setText(info);
-
-        // İnternet kullanmadığımız için varsayılan yemek ikonunu koyuyoruz
         ivRecipeImage.setImageResource(R.drawable.ic_launcher_foreground);
 
-        // 2. YAPILIŞ ADIMLARI (Yeni Eklediğimiz Kısım!)
         if (recipe.steps != null && !recipe.steps.isEmpty() && !recipe.steps.equals("nan")) {
             tvInstructions.setText(recipe.steps);
         } else {
-            tvInstructions.setText("📝 Instructions are not available for this recipe.");
+            tvInstructions.setText("📝 Instructions are not available.");
         }
+        processIngredients(recipe);
+    }
 
-        // --- 3. ZEKA KISMI: İkame (Substitution) Analizi ---
+    private void processIngredients(Recipe_Entity recipe) {
         StringBuilder ingredientsText = new StringBuilder();
-
-        // Arka planda kilerdeki malzemeleri çekmek için küçük bir thread daha
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -130,52 +178,36 @@ public class RecipeDetailActivity extends AppCompatActivity {
             List<PantryItem> pantryItems = db.pantryDao().getAllItems();
             Set<String> pantrySet = new HashSet<>();
             for (PantryItem item : pantryItems) {
-                pantrySet.add(item.getName().toLowerCase().trim());
+                pantrySet.add(IngredientNormalizer.normalize(item.getName()));
             }
 
             mainHandler.post(() -> {
                 boolean tipShown = false;
-
-                // Malzemeleri virgülden ayırıyoruz (Python'da virgüllü birleştirmiştik)
-                String rawIngredients = recipe.ingredients != null ? recipe.ingredients : "";
-                String[] ingredientsList = rawIngredients.split(",");
-
+                String[] ingredientsList = (recipe.ingredients != null ? recipe.ingredients : "").split(",");
                 for (String ingredient : ingredientsList) {
-                    String cleanIng = ingredient.toLowerCase().trim();
-                    if(cleanIng.isEmpty()) continue;
+                    String originalIng = ingredient.toLowerCase().trim();
+                    if(originalIng.isEmpty()) continue;
 
-                    ingredientsText.append("• ").append(cleanIng);
+                    String normalizedIng = IngredientNormalizer.normalize(originalIng);
+                    ingredientsText.append("• ").append(originalIng);
 
-                    // Durum 1: Malzeme Kilerde VAR
-                    if (pantrySet.contains(cleanIng)) {
+                    if (pantrySet.contains(normalizedIng)) {
                         ingredientsText.append(" ✅ (Have)\n");
-                    }
-                    // Durum 2: Malzeme YOK -> İkame Bakalım
-                    else {
-                        String substitute = subEngine.getSubstitute(cleanIng);
-
+                    } else {
+                        String substitute = subEngine.getSubstitute(normalizedIng);
                         if (substitute != null) {
-                            boolean haveSubstitute = pantrySet.contains(substitute.toLowerCase().trim());
-
-                            if (haveSubstitute) {
-                                ingredientsText.append("\n    💡 Use: ").append(substitute).append(" (You have this!)\n");
-                                if (!tipShown) {
-                                    showSubstitutionTip(cleanIng, substitute + " (Available in Pantry!)");
-                                    tipShown = true;
-                                }
-                            } else {
-                                ingredientsText.append("\n    💡 Tip: You can use ").append(substitute).append("\n");
-                                if (!tipShown) {
-                                    showSubstitutionTip(cleanIng, substitute);
-                                    tipShown = true;
-                                }
+                            boolean haveSubstitute = pantrySet.contains(IngredientNormalizer.normalize(substitute));
+                            ingredientsText.append("\n    💡 Use: ").append(substitute)
+                                    .append(haveSubstitute ? " (You have this!)" : "").append("\n");
+                            if (!tipShown) {
+                                showSubstitutionTip(originalIng, substitute);
+                                tipShown = true;
                             }
                         } else {
                             ingredientsText.append(" ❌ (Missing)\n");
                         }
                     }
                 }
-
                 tvIngredients.setText(ingredientsText.toString());
             });
         });

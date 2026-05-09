@@ -2,22 +2,43 @@ package com.havvanuraslan.mypantry;
 
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
+import androidx.room.ColumnInfo; // Gerekirse ekle
 
-@Entity(tableName = "pantry_items") // Bu satır onu veritabanı tablosu yapar
+@Entity(tableName = "pantry_items")
 public class PantryItem {
 
     @PrimaryKey(autoGenerate = true)
-    public int id; // Her ürünün benzersiz kimliği
+    public int id;
 
     public String name;
-    public int quantity;
+    private double quantity;
+    private String unit;
 
-    public PantryItem(String name, int quantity) {
+    public PantryItem(String name, double quantity, String unit) {
         this.name = name;
+        this.quantity= quantity;
+        this.unit = unit;
+    }
+
+
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public double getQuantity() {
+        return quantity;
+    }
+    public void setQuantity(double quantity) {
         this.quantity = quantity;
     }
 
-    // Getter metodları (Adapter için lazım olabilir)
-    public String getName() { return name; }
-    public int getQuantity() { return quantity; }
+    public String getUnit() {
+        return unit;
+    }
+    public void setUnit(String unit) {
+        this.unit = unit;
+    }
 }

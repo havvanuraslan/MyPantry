@@ -5,12 +5,11 @@ import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
 
-// DİKKAT: entities kısmına GroceryItem.class'ı ekledik ve versiyonu 2 yaptık
 @Database(entities = {PantryItem.class, GroceryItem.class}, version = 2)
 public abstract class AppDatabase extends RoomDatabase {
 
-    public abstract PantryDao pantryDao();   // Kiler için
-    public abstract GroceryDao groceryDao(); // Alışveriş Listesi için (Bunu ekledik)
+    public abstract PantryDao pantryDao();
+    public abstract GroceryDao groceryDao();
 
     private static AppDatabase INSTANCE;
 
@@ -19,7 +18,7 @@ public abstract class AppDatabase extends RoomDatabase {
             INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
                             AppDatabase.class, "MyPantryDB")
                     .allowMainThreadQueries()
-                    .fallbackToDestructiveMigration() // Veritabanı yapısı değişince çökmemesi için
+                    .fallbackToDestructiveMigration()
                     .build();
         }
         return INSTANCE;
