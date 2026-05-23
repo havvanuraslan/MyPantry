@@ -72,14 +72,15 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         int id = item.getItemId();
 
         if (id == R.id.nav_favorites) {
-            Intent intent = new Intent(MainActivity.this, FavoriteRecipesActivity.class);
-            startActivity(intent);
+            startActivity(new Intent(MainActivity.this, FavoriteRecipesActivity.class));
         }
         else if (id == R.id.nav_profile) {
-            Toast.makeText(this, "Profile feature coming soon!", Toast.LENGTH_SHORT).show();
+            // BURASI GÜNCELLENDİ: Profil Sayfasını açar
+            startActivity(new Intent(MainActivity.this, ProfileActivity.class));
         }
         else if (id == R.id.nav_settings) {
-            Toast.makeText(this, "Settings coming soon!", Toast.LENGTH_SHORT).show();
+            // BURASI GÜNCELLENDİ: Ayarlar Sayfasını açar
+            startActivity(new Intent(MainActivity.this, SettingsActivity.class));
         }
         else if (id == R.id.nav_logout) {
             mAuth.signOut();

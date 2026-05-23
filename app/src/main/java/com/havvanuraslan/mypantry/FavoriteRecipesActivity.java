@@ -16,6 +16,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.airbnb.lottie.LottieAnimationView;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -27,6 +29,10 @@ public class FavoriteRecipesActivity extends AppCompatActivity {
     private RecipeAdapter adapter;
     private EditText etSearch;
     private LinearLayout layoutEmptyState;
+
+    // Yeni eklenen animasyon bileşenleri
+    private LinearLayout layoutLoading;
+    private LottieAnimationView lottieLoader;
 
     private Recipe_Dao recipeDao;
     private AppDatabase pantryDb;
@@ -42,9 +48,12 @@ public class FavoriteRecipesActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_favorite_recipes);
 
+        // UI Bindings
         rvFavorites = findViewById(R.id.rvFavorites);
         etSearch = findViewById(R.id.etSearchFav);
         layoutEmptyState = findViewById(R.id.layoutEmptyState);
+        layoutLoading = findViewById(R.id.layoutLoadingFav); // XML'deki yeni ID
+        lottieLoader = findViewById(R.id.lottieLoaderFav);   // XML'deki yeni ID
         ImageButton btnBack = findViewById(R.id.btnBack);
 
         recipeDao = Recipe_Database.getDbInstance(this).recipeDao();
@@ -58,8 +67,8 @@ public class FavoriteRecipesActivity extends AppCompatActivity {
         }
 
         etSearch.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int i, int i1, int i2) {}
-            @Override public void onTextChanged(CharSequence s, int i, int i1, int i2) {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
                 filterFavorites(s.toString());
             }
             @Override public void afterTextChanged(Editable s) {}
@@ -69,63 +78,102 @@ public class FavoriteRecipesActivity extends AppCompatActivity {
     }
 
     private void loadFavoritesWithScores() {
+        // Sayfa yüklenmeye başlarken animasyonları görünür yap, eski listeyi gizle
+        if (fullFavList.isEmpty()) {
+            layoutLoading.setVisibility(View.VISIBLE);
+            if (lottieLoader != null) lottieLoader.playAnimation();
+            rvFavorites.setVisibility(View.GONE);
+        }
+        layoutEmptyState.setVisibility(View.GONE);
+
         executorService.execute(() -> {
             try {
-                List<Recipe_Entity> favorites = recipeDao.getFavoriteRecipes();
+                // 1. AŞAMA: Favorileri SQLite'tan çek
+                final List<Recipe_Entity> favorites = recipeDao.getFavoriteRecipes();
 
-                if (favorites.isEmpty()) {
+                if (favorites == null || favorites.isEmpty()) {
                     mainHandler.post(() -> {
+                        fullFavList.clear();
+                        if (adapter != null) adapter.updateList(new ArrayList<>());
+
+                        // Favori yoksa animasyonu durdur ve boş durum ekranını aç
+                        hideLoadingAnimation();
                         layoutEmptyState.setVisibility(View.VISIBLE);
                         rvFavorites.setVisibility(View.GONE);
                     });
                     return;
                 }
 
+                // AI hesaplamasını beklemeden kullanıcıya listeyi önbellekten (0.0 skorla) anında göster
+                mainHandler.post(() -> {
+                    if (fullFavList.isEmpty()) {
+                        List<Recommendation_Engine.RecipeScore> temporaryList = new ArrayList<>();
+                        for (Recipe_Entity r : favorites) {
+                            temporaryList.add(new Recommendation_Engine.RecipeScore(r, 0.0));
+                        }
+                        setupOrUpdateAdapter(temporaryList);
+                    }
+                });
+
+                // 2. AŞAMA: Arka planda kileri al ve AI skorlarını hesapla
                 List<PantryItem> pantryItems = pantryDb.pantryDao().getAllItems();
                 List<String> ingredientNames = new ArrayList<>();
                 for (PantryItem item : pantryItems) {
                     ingredientNames.add(item.getName());
                 }
 
-                aiEngine.calculateScoresForSpecificList(this, favorites, ingredientNames, new Recommendation_Engine.OnRecommendationsReady() {
-                    @Override
-                    public void onSuccess(List<Recommendation_Engine.RecipeScore> data) {
-                        mainHandler.post(() -> {
+                // AI motorunu tetikle, bitince skorları pürüzsüzce güncelleyecek
+                mainHandler.post(() -> {
+                    aiEngine.calculateScoresForSpecificList(this, favorites, ingredientNames, new Recommendation_Engine.OnRecommendationsReady() {
+                        @Override
+                        public void onSuccess(List<Recommendation_Engine.RecipeScore> data) {
                             fullFavList = data;
-                            setupAdapter(data);
-                        });
-                    }
 
-                    @Override
-                    public void onError(String error) {
-                        mainHandler.post(() -> Toast.makeText(FavoriteRecipesActivity.this, "AI Error: " + error, Toast.LENGTH_SHORT).show());
-                    }
+                            // Yükleme başarıyla tamamlandı, animasyonu gizle ve listeyi tazele
+                            hideLoadingAnimation();
+                            setupOrUpdateAdapter(data);
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            hideLoadingAnimation();
+                            // Hata durumunda da önbellekteki liste (0.0 skorlu olan) ekranda kalmaya devam eder
+                            Toast.makeText(FavoriteRecipesActivity.this, "AI Engine Error: " + error, Toast.LENGTH_SHORT).show();
+                        }
+                    });
                 });
 
             } catch (Exception e) {
-                mainHandler.post(() -> Toast.makeText(FavoriteRecipesActivity.this, "Database Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                mainHandler.post(() -> {
+                    hideLoadingAnimation();
+                    Toast.makeText(FavoriteRecipesActivity.this, "Database Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
             }
         });
     }
 
-    private void setupAdapter(List<Recommendation_Engine.RecipeScore> list) {
+    private void setupOrUpdateAdapter(List<Recommendation_Engine.RecipeScore> list) {
         layoutEmptyState.setVisibility(View.GONE);
         rvFavorites.setVisibility(View.VISIBLE);
 
-        adapter = new RecipeAdapter(this, list, new RecipeAdapter.OnRecipeClickListener() {
-            @Override
-            public void onRecipeClick(int recipeId) {
-                Intent intent = new Intent(FavoriteRecipesActivity.this, RecipeDetailActivity.class);
-                intent.putExtra("RECIPE_ID", recipeId);
-                startActivity(intent);
-            }
+        if (adapter == null) {
+            adapter = new RecipeAdapter(this, new ArrayList<>(list), new RecipeAdapter.OnRecipeClickListener() {
+                @Override
+                public void onRecipeClick(int recipeId) {
+                    Intent intent = new Intent(FavoriteRecipesActivity.this, RecipeDetailActivity.class);
+                    intent.putExtra("RECIPE_ID", recipeId);
+                    startActivity(intent);
+                }
 
-            @Override
-            public void onFavoriteClick(Recipe_Entity recipe) {
-                handleFavoriteToggle(recipe);
-            }
-        });
-        rvFavorites.setAdapter(adapter);
+                @Override
+                public void onFavoriteClick(Recipe_Entity recipe) {
+                    handleFavoriteToggle(recipe);
+                }
+            });
+            rvFavorites.setAdapter(adapter);
+        } else {
+            adapter.updateList(list);
+        }
     }
 
     private void handleFavoriteToggle(Recipe_Entity recipe) {
@@ -134,6 +182,7 @@ public class FavoriteRecipesActivity extends AppCompatActivity {
 
             mainHandler.post(() -> {
                 Toast.makeText(this, "Removed from favorites", Toast.LENGTH_SHORT).show();
+                // Favoriden eleman silinirken fullFavList tamamen boşalmasın diye sadece bu fonksiyonu çağırıyoruz
                 loadFavoritesWithScores();
             });
         });
@@ -144,11 +193,23 @@ public class FavoriteRecipesActivity extends AppCompatActivity {
 
         List<Recommendation_Engine.RecipeScore> filtered = new ArrayList<>();
         for (Recommendation_Engine.RecipeScore item : fullFavList) {
-            if (item.recipe.name.toLowerCase().contains(text.toLowerCase())) {
+            if (item.recipe.name != null && item.recipe.name.toLowerCase().contains(text.toLowerCase())) {
                 filtered.add(item);
             }
         }
         if (adapter != null) adapter.updateList(filtered);
+    }
+
+    /**
+     * Lottie yükleme animasyonunu güvenli bir şekilde durdurur ve gizler.
+     */
+    private void hideLoadingAnimation() {
+        if (lottieLoader != null) {
+            lottieLoader.cancelAnimation();
+        }
+        if (layoutLoading != null) {
+            layoutLoading.setVisibility(View.GONE);
+        }
     }
 
     @Override

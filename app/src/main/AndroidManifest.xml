@@ -38,6 +38,9 @@
         <activity
             android:name=".FavoriteRecipesActivity" />
 
+        <activity android:name=".ProfileActivity" />
+        <activity android:name=".SettingsActivity" />
+
         <activity
             android:name=".LoginActivity"
             android:exported="true">
