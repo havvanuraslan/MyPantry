@@ -43,6 +43,17 @@
                 android:textColor="@color/pantry_orange"
                 android:textStyle="bold"
                 android:layout_marginTop="2dp"/>
+
+            <TextView
+                android:id="@+id/tvItemExpiryAlert"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Exp. in 2 days"
+                android:textColor="#D32F2F"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                tools:visibility="visible" />
         </LinearLayout>
 
         <LinearLayout

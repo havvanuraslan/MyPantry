@@ -1,12 +1,15 @@
 package com.havvanuraslan.mypantry;
 
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.ArrayAdapter; // EKLENDİ
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView; // Spinner yerine EKLENDİ
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.Spinner; // EKLENDİ
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -16,8 +19,11 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.textfield.TextInputLayout; // EKLENDİ
 
+import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
 
 public class PantryActivity extends AppCompatActivity {
 
@@ -62,10 +68,16 @@ public class PantryActivity extends AppCompatActivity {
             recyclerView.setVisibility(View.VISIBLE);
         }
 
-        adapter = new PantryAdapter(items, new PantryAdapter.OnItemActionListener() {
+        adapter = new PantryAdapter(this, items);
+
+        adapter.setListener(new PantryAdapter.OnItemActionListener() {
             @Override
             public void onDelete(int position) {
                 PantryItem itemToDelete = items.get(position);
+
+                SharedPreferences sharedPrefs = getSharedPreferences("PantryExpiryPrefs", Context.MODE_PRIVATE);
+                sharedPrefs.edit().remove(itemToDelete.getName() + "_expiry").apply();
+
                 db.pantryDao().delete(itemToDelete);
                 loadPantryList();
                 Toast.makeText(PantryActivity.this, "Item deleted", Toast.LENGTH_SHORT).show();
@@ -75,8 +87,6 @@ public class PantryActivity extends AppCompatActivity {
             public void onIncrease(int position) {
                 PantryItem item = items.get(position);
                 double step = getStepSize(item.getUnit());
-
-                // Add the step and round to 1 decimal place to prevent floating-point errors (e.g., 3.10000000000004)
                 double newQty = Math.round((item.getQuantity() + step) * 10.0) / 10.0;
 
                 item.setQuantity(newQty);
@@ -88,10 +98,9 @@ public class PantryActivity extends AppCompatActivity {
             public void onDecrease(int position) {
                 PantryItem item = items.get(position);
                 double step = getStepSize(item.getUnit());
-
                 double newQty = Math.round((item.getQuantity() - step) * 10.0) / 10.0;
 
-                if (newQty > 0) { // En az 0.1 veya 1.0'a kadar düşebilmeli
+                if (newQty > 0) {
                     item.setQuantity(newQty);
                     db.pantryDao().update(item);
                     loadPantryList();
@@ -125,34 +134,78 @@ public class PantryActivity extends AppCompatActivity {
 
         EditText etName = view.findViewById(R.id.etItemName);
         EditText etQty = view.findViewById(R.id.etQuantity);
-        Spinner spinnerUnit = view.findViewById(R.id.spinnerUnit);
+        EditText etExpiryDate = view.findViewById(R.id.etExpiryDate);
+
+        // 🌟 DÜZELTİLDİ: Spinner yerine AutoCompleteTextView casting işlemi yapıldı
+        AutoCompleteTextView spinnerUnit = view.findViewById(R.id.spinnerUnit);
+
         Button btnAdd = view.findViewById(R.id.btnAdd);
         TextView btnCancel = view.findViewById(R.id.btnCancel);
 
-        ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(
-                this,
-                R.array.unit_options,
-                android.R.layout.simple_spinner_item
-        );
-        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerUnit.setAdapter(spinnerAdapter);
+        // 🌟 DÜZELTİLDİ: Material 3 Exposed Dropdown şablonuna uygun ArrayAdapter
+        if (spinnerUnit != null) {
+            ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(
+                    this,
+                    R.array.unit_options,
+                    android.R.layout.simple_dropdown_item_1line
+            );
+            spinnerUnit.setAdapter(spinnerAdapter);
+        }
+
+        // 🌟 DÜZELTİLDİ: Hem kutucuk hem de sağdaki takvim simgesi için ortak tetikleyici
+        if (etExpiryDate != null) {
+            View.OnClickListener showDatePicker = v -> {
+                Calendar calendar = Calendar.getInstance();
+                int year = calendar.get(Calendar.YEAR);
+                int month = calendar.get(Calendar.MONTH);
+                int day = calendar.get(Calendar.DAY_OF_MONTH);
+
+                android.app.DatePickerDialog datePickerDialog = new android.app.DatePickerDialog(
+                        PantryActivity.this,
+                        (view1, selectedYear, selectedMonth, selectedDay) -> {
+                            String formattedDate = String.format(Locale.getDefault(), "%04d-%02d-%02d",
+                                    selectedYear, (selectedMonth + 1), selectedDay);
+                            etExpiryDate.setText(formattedDate);
+                        },
+                        year, month, day
+                );
+
+                datePickerDialog.getDatePicker().setMinDate(System.currentTimeMillis());
+                datePickerDialog.show();
+            };
+
+            // Yazı alanına tıklandığında takvimi aç
+            etExpiryDate.setOnClickListener(showDatePicker);
+
+            // Sağdaki takvim simgesine (End Icon) tıklandığında da takvimi aç
+            View parentLayout = (View) etExpiryDate.getParent().getParent();
+            if (parentLayout instanceof TextInputLayout) {
+                ((TextInputLayout) parentLayout).setEndIconOnClickListener(showDatePicker);
+            }
+        }
 
         btnAdd.setOnClickListener(v -> {
             String name = etName.getText().toString().trim();
             String qtyStr = etQty.getText().toString().trim();
+            String expiryDate = etExpiryDate != null ? etExpiryDate.getText().toString().trim() : "";
 
-            if (!name.isEmpty() && !qtyStr.isEmpty()) {
+            if (!name.isEmpty() && !qtyStr.isEmpty() && !expiryDate.isEmpty()) {
                 double quantity = Double.parseDouble(qtyStr);
-                String selectedUnit = spinnerUnit.getSelectedItem().toString();
+
+                // AutoCompleteTextView değerini güvenle string'e döküyoruz
+                String selectedUnit = spinnerUnit != null ? spinnerUnit.getText().toString() : "";
 
                 PantryItem newItem = new PantryItem(name, quantity, selectedUnit);
-
                 db.pantryDao().insert(newItem);
+
+                SharedPreferences sharedPrefs = getSharedPreferences("PantryExpiryPrefs", Context.MODE_PRIVATE);
+                sharedPrefs.edit().putString(name + "_expiry", expiryDate).apply();
+
                 loadPantryList();
                 dialog.dismiss();
                 Toast.makeText(this, "Item Added!", Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Please fill all fields, including Expiry Date", Toast.LENGTH_SHORT).show();
             }
         });
 

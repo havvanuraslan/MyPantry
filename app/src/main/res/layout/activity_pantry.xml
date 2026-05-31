@@ -5,60 +5,57 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/pantry_bg">
+    android:background="#FDFDFD">
 
-    <View
-        android:id="@+id/headerBg"
+    <RelativeLayout
+        android:id="@+id/layoutTopBanner"
         android:layout_width="match_parent"
-        android:layout_height="100dp"
-        android:background="@color/pantry_green"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_height="140dp"
+        android:background="@drawable/bg_home_top_banner"
+        app:layout_constraintTop_toTopOf="parent">
 
-    <ImageButton
-        android:id="@+id/btnBack"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="28dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_menu_revert"
-        app:tint="@color/white"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="20dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_revert"
+            app:tint="@color/white" />
 
-    <TextView
-        android:id="@+id/tvTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="My Pantry"
-        android:textColor="@color/white"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:letterSpacing="0.05"
-        app:layout_constraintBottom_toBottomOf="@+id/headerBg"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/btnBack"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintHorizontal_bias="0.3"
-        app:layout_constraintVertical_bias="0.55"/>
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@id/btnBack"
+            android:layout_marginTop="28dp"
+            android:layout_marginStart="12dp"
+            android:text="My Pantry"
+            android:textColor="@color/white"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="0.02" />
+    </RelativeLayout>
 
     <androidx.cardview.widget.CardView
         android:id="@+id/cardListContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="-25dp"
         android:layout_marginBottom="-30dp"
-        app:cardCornerRadius="40dp"
+        app:cardCornerRadius="32dp"
         app:cardElevation="0dp"
-        app:cardBackgroundColor="#F5F5F5"
+        app:cardBackgroundColor="#F8F9FA"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/headerBg">
+        app:layout_constraintTop_toBottomOf="@+id/layoutTopBanner">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingHorizontal="20dp"
-            android:paddingTop="32dp">
+            android:paddingHorizontal="16dp"
+            android:paddingTop="24dp">
 
             <TextView
                 android:id="@+id/tvEmptyState"
@@ -66,8 +63,10 @@
                 android:layout_height="wrap_content"
                 android:text="Your pantry is empty.\nTap + to add ingredients!"
                 android:textAlignment="center"
-                android:textColor="#8D6E63"
-                android:textSize="18sp"
+                android:textColor="#A08D85"
+                android:textSize="16sp"
+                android:lineSpacingExtra="4dp"
+                android:fontFamily="sans-serif-light"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
@@ -79,7 +78,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:clipToPadding="false"
-                android:paddingBottom="120dp"
+                android:paddingBottom="140dp"
                 tools:listitem="@layout/item_pantry_ingredient" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
@@ -89,14 +88,17 @@
         android:id="@+id/fabAdd"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="40dp"
-        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="48dp"
+        android:layout_marginEnd="24dp"
         android:src="@android:drawable/ic_input_add"
-        app:backgroundTint="@color/pantry_orange"
+        app:backgroundTint="#FF9800"
         app:tint="@color/white"
-        app:fabSize="normal"
+        app:fabCustomSize="56dp"
+        app:elevation="4dp"
+        app:maxImageSize="28dp"
+        app:shapeAppearanceOverlay="@style/CircleShape"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        contentDescription="Add Item" />
+        android:contentDescription="Add Item" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
