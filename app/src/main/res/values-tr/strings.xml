@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">MyPantry</string>
+    <string name="welcome_text" translatable="false">KİLERİNİZE HOŞ GELDİNİZ!</string>
+    <string name="let_s_get_cooking">Haydi pişirmeye başlayalım!</string>
+    <string name="application_logo">Uygulama Logosu</string>
+    <string name="update_button">Kilerini Güncelle</string>
+    <string name="grocery_button">Alışveriş Listesini Görüntüle</string>
+    <string name="recipes_button">Tarifleri Keşfet</string>
+    <string name="navigation_drawer_open">Gezinti Menüsünü Aç</string>
+    <string name="navigation_drawer_close">Gezinti Menüsünü Kapat</string>
+
+    <string-array name="unit_options">
+        <item>Adet</item>
+        <item>Kg</item>
+        <item>Gram (g)</item>
+        <item>Litre (L)</item>
+        <item>Mililitre (ml)</item>
+        <item>Paket</item>
+        <item>Demet</item>
+    </string-array>
+</resources>
