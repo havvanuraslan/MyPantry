@@ -159,7 +159,45 @@ public class RecipeDetailActivity extends AppCompatActivity {
         String info = "⏱️ Ready in " + recipe.minutes + " minutes\nTags: " +
                 (recipe.tags != null ? recipe.tags : "General");
         tvCategory.setText(info);
-        ivRecipeImage.setImageResource(R.drawable.ic_launcher_foreground);
+
+        if (ivRecipeImage != null) {
+            int targetDrawableId = R.drawable.pantry_spices;
+
+            StringBuilder sourceBuilder = new StringBuilder();
+            if (recipe.ingredients != null && !recipe.ingredients.isEmpty()) {
+                sourceBuilder.append(recipe.ingredients.toLowerCase()).append(" ");
+            }
+            if (recipe.name != null && !recipe.name.isEmpty()) {
+                sourceBuilder.append(recipe.name.toLowerCase());
+            }
+            String sourceText = sourceBuilder.toString();
+
+            if (!sourceText.isEmpty()) {
+                if (sourceText.contains("coffee") || sourceText.contains("tea") || sourceText.contains("juice") || sourceText.contains("milkshake") || sourceText.contains("drink") || sourceText.contains("smoothie")) {
+                    targetDrawableId = R.drawable.drinks;
+                } else if (sourceText.contains("chocolate") || sourceText.contains("sugar") || sourceText.contains("cocoa") || sourceText.contains("cake") || sourceText.contains("cookie") || sourceText.contains("pudding") || sourceText.contains("dessert")) {
+                    targetDrawableId = R.drawable.desserts;
+                } else if (sourceText.contains("fish") || sourceText.contains("shrimp") || sourceText.contains("salmon") || sourceText.contains("tuna") || sourceText.contains("seafood")) {
+                    targetDrawableId = R.drawable.seafood;
+                } else if (sourceText.contains("meat") || sourceText.contains("chicken") || sourceText.contains("beef") || sourceText.contains("pork") || sourceText.contains("lamb") || sourceText.contains("steak") || sourceText.contains("tavuk") || sourceText.contains("et")) {
+                    targetDrawableId = R.drawable.meat_and_veggies;
+                } else if (sourceText.contains("rice") || sourceText.contains("lentil") || sourceText.contains("beans") || sourceText.contains("chickpea") || sourceText.contains("pasta") || sourceText.contains("spaghetti") || sourceText.contains("makarna") || sourceText.contains("pilav")) {
+                    targetDrawableId = R.drawable.grains_and_pulses;
+                } else if (sourceText.contains("flour") || sourceText.contains("yeast") || sourceText.contains("baking powder") || sourceText.contains("bread") || sourceText.contains("pie") || sourceText.contains("dough") || sourceText.contains("börek") || sourceText.contains("poğaça")) {
+                    targetDrawableId = R.drawable.bakery_and_flour;
+                } else if (sourceText.contains("breakfast") || sourceText.contains("toast") || sourceText.contains("pancake") || sourceText.contains("egg") || sourceText.contains("yumurta") || sourceText.contains("tost")) {
+                    targetDrawableId = R.drawable.breakfast;
+                } else if (sourceText.contains("salad") || sourceText.contains("mezze") || sourceText.contains("lettuce") || sourceText.contains("cucumber") || sourceText.contains("olive oil") || sourceText.contains("salata")) {
+                    targetDrawableId = R.drawable.salads;
+                } else if (sourceText.contains("tomato") || sourceText.contains("potato") || sourceText.contains("onion") || sourceText.contains("garlic") || sourceText.contains("carrot") || sourceText.contains("broccoli") || sourceText.contains("sebze") || sourceText.contains("patates")) {
+                    targetDrawableId = R.drawable.mixed_vegetables;
+                } else {
+                    targetDrawableId = R.drawable.world_cuisine_1;
+                }
+            }
+
+            ivRecipeImage.setImageResource(targetDrawableId);
+        }
 
         if (recipe.steps != null && !recipe.steps.isEmpty() && !recipe.steps.equals("nan")) {
             tvInstructions.setText(recipe.steps);

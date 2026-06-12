@@ -19,12 +19,11 @@ public abstract class Recipe_Database extends RoomDatabase {
                     INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
                                     Recipe_Database.class, "MyPantry_Master_DB")
                             .createFromAsset("MyPantry.db")
-                            .fallbackToDestructiveMigration()
-                            .allowMainThreadQueries()
                             .build();
                 }
             }
         }
         return INSTANCE;
+
     }
 }

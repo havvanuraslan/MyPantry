@@ -216,7 +216,7 @@ public class RecipeListActivity extends AppCompatActivity {
         String msg = recipe.isFavorite ? "Added to favorites" : "Removed from favorites";
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
 
-        adapter.notifyDataSetChanged();
+        applyFilters();
     }
 
     private void applyFilters() {

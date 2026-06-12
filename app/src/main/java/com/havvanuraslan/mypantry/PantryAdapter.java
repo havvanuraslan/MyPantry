@@ -21,15 +21,13 @@ public class PantryAdapter extends RecyclerView.Adapter<PantryAdapter.PantryView
 
     private final List<PantryItem> pantryList;
     private final Context context;
-    private OnItemActionListener listener; // 🌟 EKLENDİ: Aksiyonları dinleyecek değişken
+    private OnItemActionListener listener;
 
-    // 🌟 EKLENDİ: PantryActivity'deki çağırma stiline uygun 2 parametreli Constructor
     public PantryAdapter(Context context, List<PantryItem> pantryList) {
         this.context = context;
         this.pantryList = pantryList;
     }
 
-    // 🌟 EKLENDİ: Activity tarafındaki adapter.setListener(...) çağrısını karşılayan metot
     public void setListener(OnItemActionListener listener) {
         this.listener = listener;
     }
@@ -48,7 +46,6 @@ public class PantryAdapter extends RecyclerView.Adapter<PantryAdapter.PantryView
         holder.tvName.setText(item.getName());
         holder.tvQuantity.setText(item.getQuantity() + " " + item.getUnit());
 
-        // 🌟 SHAREDPREFERENCES'TAN TARİHİ ÇEK VE LISTEDE ROZETİ GÜNCELLE
         SharedPreferences sharedPrefs = context.getSharedPreferences("PantryExpiryPrefs", Context.MODE_PRIVATE);
         String expiryDateStr = sharedPrefs.getString(item.getName() + "_expiry", null);
 
@@ -81,7 +78,6 @@ public class PantryAdapter extends RecyclerView.Adapter<PantryAdapter.PantryView
             holder.tvItemExpiryAlert.setVisibility(View.GONE);
         }
 
-        // 🌟 EKLENDİ: Butonların Tıklama Olaylarını Dinleyiciye (PantryActivity) Bildirme
         if (listener != null) {
             if (holder.btnIncrease != null) {
                 holder.btnIncrease.setOnClickListener(v -> listener.onIncrease(holder.getAdapterPosition()));
@@ -100,7 +96,6 @@ public class PantryAdapter extends RecyclerView.Adapter<PantryAdapter.PantryView
         return pantryList != null ? pantryList.size() : 0;
     }
 
-    // 🌟 EKLENDİ: PantryActivity'nin beklediği ve eksik olan Interface tanımı
     public interface OnItemActionListener {
         void onDelete(int position);
         void onIncrease(int position);
@@ -109,7 +104,7 @@ public class PantryAdapter extends RecyclerView.Adapter<PantryAdapter.PantryView
 
     public static class PantryViewHolder extends RecyclerView.ViewHolder {
         TextView tvName, tvQuantity, tvItemExpiryAlert;
-        View btnIncrease, btnDecrease, btnDelete; // 🌟 EKLENDİ: XML satırındaki butonlar
+        View btnIncrease, btnDecrease, btnDelete;
 
         public PantryViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -117,8 +112,6 @@ public class PantryAdapter extends RecyclerView.Adapter<PantryAdapter.PantryView
             tvQuantity = itemView.findViewById(R.id.tvQuantity);
             tvItemExpiryAlert = itemView.findViewById(R.id.tvItemExpiryAlert);
 
-            // 🌟 EKLENDİ: Satır tasarımındaki (item_pantry_ingredient.xml) buton id'leri
-            // Eğer senin XML dosyasında bu butonların id'leri farklıysa (Örn: btnPlus, btnMinus vb.) alt kısımları ona göre güncelle.
             btnIncrease = itemView.findViewById(R.id.btnPlus);
             btnDecrease = itemView.findViewById(R.id.btnMinus);
             btnDelete = itemView.findViewById(R.id.btnDelete);

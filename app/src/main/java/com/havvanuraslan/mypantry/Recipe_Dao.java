@@ -31,4 +31,11 @@ public interface Recipe_Dao {
 
     @Query("UPDATE recipes SET favorite_recipe = :isFavorite WHERE id = :recipeId")
     void updateFavoriteStatus(int recipeId, int isFavorite);
+
+    @Query("SELECT * FROM recipes LIMIT 5")
+    List<Recipe_Entity> getRandomSuggestions();
+
+    @Query("SELECT * FROM recipes WHERE ingredients LIKE '%' || :keyword || '%' LIMIT 5")
+    List<Recipe_Entity> getSmartSuggestionsByIngredient(String keyword);
+
 }

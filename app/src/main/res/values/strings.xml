@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">MyPantry</string>
-    <string name="welcome_text">WELCOME TO\nYOUR PANTRY</string>
+    <string name="welcome_text" translatable="false">WELCOME TO YOUR PANTRY</string>
     <string name="let_s_get_cooking">Let\'s get cooking!</string>
     <string name="application_logo">Application Logo</string>
     <string name="update_button">Update Your Pantry</string>

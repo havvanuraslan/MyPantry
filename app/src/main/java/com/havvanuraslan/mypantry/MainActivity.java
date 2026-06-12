@@ -3,8 +3,11 @@ package com.havvanuraslan.mypantry;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -18,16 +21,19 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.navigation.NavigationView;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -46,12 +52,15 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private NavigationView navigationView;
     private RecyclerView rvHomeSuggestions;
 
+    private SwitchMaterial switchLanguageToggle, switchThemeToggle;
+    private TextView tvLangEN, tvLangTR;
+
     private FirebaseAuth mAuth;
     private AppDatabase pantryDb;
     private Recipe_Dao recipeDao;
 
-    // 🌟 Profil senkronizasyonu için SharedPreferences tanımı
     private SharedPreferences userPrefs;
+    private SharedPreferences systemPrefs;
 
     private final ExecutorService executorService = Executors.newFixedThreadPool(2);
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -59,13 +68,21 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        systemPrefs = getSharedPreferences("MyPantryPrefs", Context.MODE_PRIVATE);
+        applySavedLanguage();
+
         setContentView(R.layout.activity_main);
 
         mAuth = FirebaseAuth.getInstance();
         pantryDb = AppDatabase.getDbInstance(this);
-        recipeDao = Recipe_Database.getDbInstance(this).recipeDao();
 
-        // 🌟 Profil ortak hafızası ilklendirildi
+        try {
+            recipeDao = Recipe_Database.getDbInstance(this).recipeDao();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         userPrefs = getSharedPreferences("UserProfilePrefs", Context.MODE_PRIVATE);
 
         drawerLayout = findViewById(R.id.drawer_layout);
@@ -105,17 +122,27 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (btnGroceryList != null) {
             btnGroceryList.setOnClickListener(v -> startActivity(new Intent(this, GroceryListActivity.class)));
         }
-
         if (tvViewAllRecipes != null) {
             tvViewAllRecipes.setOnClickListener(v -> startActivity(new Intent(this, RecipeListActivity.class)));
         }
+
+        if (navigationView != null) {
+            switchLanguageToggle = navigationView.findViewById(R.id.switchLanguageToggle);
+            switchThemeToggle = navigationView.findViewById(R.id.switchThemeToggle);
+            tvLangEN = navigationView.findViewById(R.id.tvLangEN);
+            tvLangTR = navigationView.findViewById(R.id.tvLangTR);
+        }
+
+        setupCustomToggles();
+
+        loadAllHomeDataPipeline();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        loadHomeStatistics();
-        updateNavHeader(); // 🌟 Kullanıcı profil düzenleyip döndüğünde verileri anında tazelemek için kritik alan
+        loadAllHomeDataPipeline();
+        updateNavHeader();
     }
 
     @Override
@@ -126,14 +153,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             startActivity(new Intent(MainActivity.this, ProfileActivity.class));
         } else if (id == R.id.nav_favorites) {
             startActivity(new Intent(MainActivity.this, FavoriteRecipesActivity.class));
-        } else if (id == R.id.nav_language) {
-            Toast.makeText(this, "Language settings coming soon!", Toast.LENGTH_SHORT).show();
-        } else if (id == R.id.nav_theme) {
-            Toast.makeText(this, "Theme settings coming soon!", Toast.LENGTH_SHORT).show();
-        } else if (id == R.id.nav_history) {
-            Toast.makeText(this, "Pantry history coming soon!", Toast.LENGTH_SHORT).show();
         } else if (id == R.id.nav_settings) {
             startActivity(new Intent(MainActivity.this, SettingsActivity.class));
+        } else if (id == R.id.nav_history) {
+            startActivity(new Intent(MainActivity.this, HistoryActivity.class));
         } else if (id == R.id.nav_logout) {
             mAuth.signOut();
             Intent intent = new Intent(MainActivity.this, LoginActivity.class);
@@ -146,10 +169,143 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         return true;
     }
 
+    private void setupCustomToggles() {
+        if (switchLanguageToggle != null) {
+            String currentLang = systemPrefs.getString("app_language", "en");
+            switchLanguageToggle.setChecked(currentLang.equals("tr"));
+            updateLanguageTextHighlights(currentLang.equals("tr"));
+
+            switchLanguageToggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                String targetLang = isChecked ? "tr" : "en";
+                systemPrefs.edit().putString("app_language", targetLang).apply();
+                updateLanguageTextHighlights(isChecked);
+
+                Locale locale = new Locale(targetLang);
+                Locale.setDefault(locale);
+                Resources resources = getResources();
+                Configuration config = resources.getConfiguration();
+                config.setLocale(locale);
+                resources.updateConfiguration(config, resources.getDisplayMetrics());
+
+                String toastMessage = isChecked ? "Uygulama dili Türkçe yapıldı!" : "Language switched to English!";
+                Toast.makeText(this, toastMessage, Toast.LENGTH_SHORT).show();
+
+                recreate();
+            });
+        }
+
+        if (switchThemeToggle != null) {
+            String currentTheme = systemPrefs.getString("app_theme_mode", "light");
+            switchThemeToggle.setChecked(currentTheme.equals("light"));
+
+            switchThemeToggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                String targetTheme = isChecked ? "light" : "dark";
+                systemPrefs.edit().putString("app_theme_mode", targetTheme).apply();
+
+                if (isChecked) {
+                    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+                    Toast.makeText(this, "Light Mode Activated ☀️", Toast.LENGTH_SHORT).show();
+                } else {
+                    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+                    Toast.makeText(this, "Dark Mode Activated 🌙", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
+
+    private void updateLanguageTextHighlights(boolean isTurkish) {
+        if (tvLangEN != null && tvLangTR != null) {
+            if (isTurkish) {
+                tvLangTR.setTextColor(Color.parseColor("#9A5B30"));
+                tvLangEN.setTextColor(Color.parseColor("#BCAAA4"));
+            } else {
+                tvLangEN.setTextColor(Color.parseColor("#9A5B30"));
+                tvLangTR.setTextColor(Color.parseColor("#BCAAA4"));
+            }
+        }
+    }
+
+    private void applySavedLanguage() {
+        String langCode = systemPrefs.getString("app_language", "en");
+        Locale locale = new Locale(langCode);
+        Locale.setDefault(locale);
+        Resources resources = getResources();
+        Configuration config = resources.getConfiguration();
+        config.setLocale(locale);
+        resources.updateConfiguration(config, resources.getDisplayMetrics());
+    }
+
+    private void loadAllHomeDataPipeline() {
+        executorService.execute(() -> {
+            int pantryCount = 0;
+            int favCount = 0;
+            int criticalItemsCount = 0;
+            List<Recipe_Entity> smartSuggestions = null;
+
+            try {
+                if (pantryDb != null && pantryDb.pantryDao() != null) {
+                    List<PantryItem> allItems = pantryDb.pantryDao().getAllItems();
+                    pantryCount = allItems != null ? allItems.size() : 0;
+
+                    if (recipeDao != null) {
+                        List<Recipe_Entity> rawMatches = null;
+
+                        if (allItems != null && !allItems.isEmpty()) {
+                            String topIngredient = allItems.get(0).getName();
+                            if (topIngredient != null && !topIngredient.isEmpty()) {
+                                rawMatches = recipeDao.getSmartSuggestionsByIngredient(topIngredient.trim());
+                            }
+                        }
+
+                        if (rawMatches == null || rawMatches.isEmpty()) {
+                            rawMatches = recipeDao.getSmartSuggestionsByIngredient("tomato");
+                        }
+
+                        if (rawMatches != null && !rawMatches.isEmpty()) {
+                            java.util.Collections.shuffle(rawMatches);
+
+                            int limitCount = Math.min(5, rawMatches.size());
+                            smartSuggestions = new ArrayList<>(rawMatches.subList(0, limitCount));
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            try {
+                if (recipeDao != null) {
+                    favCount = recipeDao.getFavoriteRecipes().size();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            final int finalPantryCount = pantryCount;
+            final int finalFavCount = favCount;
+            final int finalExpiringCount = criticalItemsCount;
+            final List<Recipe_Entity> finalSuggestions = smartSuggestions;
+
+            mainHandler.post(() -> {
+                try {
+                    if (tvHomePantryCount != null) tvHomePantryCount.setText(String.valueOf(finalPantryCount));
+                    if (tvHomeFavCount != null) tvHomeFavCount.setText(String.valueOf(finalFavCount));
+                    if (tvHomeExpiringCount != null) tvHomeExpiringCount.setText(String.valueOf(finalExpiringCount));
+
+                    if (finalSuggestions != null && !finalSuggestions.isEmpty() && rvHomeSuggestions != null) {
+                        HomeSuggestionsAdapter adapter = new HomeSuggestionsAdapter(MainActivity.this, finalSuggestions);
+                        rvHomeSuggestions.setAdapter(adapter);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        });
+    }
+
     private void setupDynamicGreeting() {
         FirebaseUser user = mAuth.getCurrentUser();
         if (user != null) {
-            // Ana ekrandaki hoş geldin mesajı ismini de SharedPreferences üzerinden canlı besliyoruz
             String savedName = userPrefs.getString("saved_name", "");
             if (!savedName.isEmpty()) {
                 if (tvHomeUserName != null) tvHomeUserName.setText(savedName + "!");
@@ -175,80 +331,27 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
-    private void loadHomeStatistics() {
-        executorService.execute(() -> {
-            try {
-                List<PantryItem> allItems = pantryDb.pantryDao().getAllItems();
-                final int pantryCount = allItems != null ? allItems.size() : 0;
-                final int favCount = recipeDao.getFavoriteRecipes().size();
-
-                SharedPreferences sharedPrefs = getSharedPreferences("PantryExpiryPrefs", Context.MODE_PRIVATE);
-                int criticalItemsCount = 0;
-
-                if (allItems != null) {
-                    Date today = new Date();
-                    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-
-                    for (PantryItem item : allItems) {
-                        String itemExpiryStr = sharedPrefs.getString(item.getName() + "_expiry", null);
-
-                        if (itemExpiryStr != null && !itemExpiryStr.isEmpty()) {
-                            try {
-                                Date expiryDate = dateFormat.parse(itemExpiryStr);
-                                if (expiryDate != null) {
-                                    long diffInMillis = expiryDate.getTime() - today.getTime();
-                                    long diffInDays = diffInMillis / (1000 * 60 * 60 * 24);
-
-                                    if (diffInDays <= 3) {
-                                        criticalItemsCount++;
-                                    }
-                                }
-                            } catch (Exception dateEx) {
-                                // Bozuk format pas geçilir
-                            }
-                        }
-                    }
-                }
-
-                final int finalExpiringCount = criticalItemsCount;
-
-                mainHandler.post(() -> {
-                    if (tvHomePantryCount != null) tvHomePantryCount.setText(String.valueOf(pantryCount));
-                    if (tvHomeFavCount != null) tvHomeFavCount.setText(String.valueOf(favCount));
-                    if (tvHomeExpiringCount != null) tvHomeExpiringCount.setText(String.valueOf(finalExpiringCount));
-                });
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
-    // 🌟 GÜNCELLENDİ: Yan menü açıldığında tüm verileri SharedPreferences havuzundan taze olarak çeker
     private void updateNavHeader() {
         if (navigationView != null) {
             View headerView = navigationView.getHeaderView(0);
             if (headerView != null) {
                 TextView tvHeaderName = headerView.findViewById(R.id.tvHeaderName);
                 TextView tvHeaderEmail = headerView.findViewById(R.id.tvHeaderEmail);
-                ImageView ivNavProfileCircle = headerView.findViewById(R.id.ivNavProfileCircle); // 🌟 Fotoğraf Kimliği Yakalandı
+                ImageView ivNavProfileCircle = headerView.findViewById(R.id.ivNavProfileCircle);
 
                 FirebaseUser user = mAuth.getCurrentUser();
                 if (user != null) {
 
-                    // 1. KULLANICI ADI SENKRONİZASYONU (@username)
                     String savedUsername = userPrefs.getString("saved_username", "");
                     if (tvHeaderEmail != null) {
                         if (!savedUsername.isEmpty()) {
-                            // Profilde kaydedilen güncel kullanıcı adı gelir
                             tvHeaderEmail.setText("@" + savedUsername);
                         } else if (user.getEmail() != null) {
-                            // Boşsa ilk kayıt esnasındaki e-posta ön ekini korur
                             String usernamePrefix = user.getEmail().split("@")[0];
                             tvHeaderEmail.setText("@" + usernamePrefix);
                         }
                     }
 
-                    // 2. AD SOYAD SENKRONİZASYONU
                     String savedName = userPrefs.getString("saved_name", "");
                     if (tvHeaderName != null) {
                         if (!savedName.isEmpty()) {
@@ -262,7 +365,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         }
                     }
 
-                    // 3. PROFİL FOTOĞRAFI SENKRONİZASYONU (Çökmesiz Kalıcı Base64 Dönüştürücü)
                     String savedImageBase64 = userPrefs.getString("profile_image_base64", "");
                     if (!savedImageBase64.isEmpty() && ivNavProfileCircle != null) {
                         try {
@@ -270,7 +372,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                             Bitmap decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
                             ivNavProfileCircle.setImageBitmap(decodedByte);
                         } catch (Exception e) {
-                            e.printStackTrace(); // Kodun kırılmasını / çökmesini kesinlikle engeller
+                            e.printStackTrace();
                         }
                     }
                 }

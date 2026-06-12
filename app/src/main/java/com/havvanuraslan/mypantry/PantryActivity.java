@@ -136,13 +136,11 @@ public class PantryActivity extends AppCompatActivity {
         EditText etQty = view.findViewById(R.id.etQuantity);
         EditText etExpiryDate = view.findViewById(R.id.etExpiryDate);
 
-        // 🌟 DÜZELTİLDİ: Spinner yerine AutoCompleteTextView casting işlemi yapıldı
         AutoCompleteTextView spinnerUnit = view.findViewById(R.id.spinnerUnit);
 
         Button btnAdd = view.findViewById(R.id.btnAdd);
         TextView btnCancel = view.findViewById(R.id.btnCancel);
 
-        // 🌟 DÜZELTİLDİ: Material 3 Exposed Dropdown şablonuna uygun ArrayAdapter
         if (spinnerUnit != null) {
             ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(
                     this,
@@ -152,7 +150,6 @@ public class PantryActivity extends AppCompatActivity {
             spinnerUnit.setAdapter(spinnerAdapter);
         }
 
-        // 🌟 DÜZELTİLDİ: Hem kutucuk hem de sağdaki takvim simgesi için ortak tetikleyici
         if (etExpiryDate != null) {
             View.OnClickListener showDatePicker = v -> {
                 Calendar calendar = Calendar.getInstance();
@@ -174,10 +171,8 @@ public class PantryActivity extends AppCompatActivity {
                 datePickerDialog.show();
             };
 
-            // Yazı alanına tıklandığında takvimi aç
             etExpiryDate.setOnClickListener(showDatePicker);
 
-            // Sağdaki takvim simgesine (End Icon) tıklandığında da takvimi aç
             View parentLayout = (View) etExpiryDate.getParent().getParent();
             if (parentLayout instanceof TextInputLayout) {
                 ((TextInputLayout) parentLayout).setEndIconOnClickListener(showDatePicker);
@@ -192,7 +187,6 @@ public class PantryActivity extends AppCompatActivity {
             if (!name.isEmpty() && !qtyStr.isEmpty() && !expiryDate.isEmpty()) {
                 double quantity = Double.parseDouble(qtyStr);
 
-                // AutoCompleteTextView değerini güvenle string'e döküyoruz
                 String selectedUnit = spinnerUnit != null ? spinnerUnit.getText().toString() : "";
 
                 PantryItem newItem = new PantryItem(name, quantity, selectedUnit);

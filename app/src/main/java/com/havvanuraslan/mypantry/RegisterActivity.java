@@ -17,7 +17,7 @@ import com.google.firebase.auth.FirebaseAuthUserCollisionException; // EKLENDİ
 public class RegisterActivity extends AppCompatActivity {
 
     private EditText etName, etEmail, etPassword, etConfirmPassword;
-    private TextInputLayout tilName, tilEmail, tilPassword, tilConfirmPassword; // 🌟 Boş alan uyarısı için eklendi
+    private TextInputLayout tilName, tilEmail, tilPassword, tilConfirmPassword;
     private MaterialButton btnRegister;
     private TextView tvGoToLogin;
     private ImageButton btnRegisterBack;
@@ -31,13 +31,11 @@ public class RegisterActivity extends AppCompatActivity {
 
         mAuth = FirebaseAuth.getInstance();
 
-        // TextInputLayout Eşlemeleri
         tilName = findViewById(R.id.tilRegName);
         tilEmail = findViewById(R.id.tilRegEmail);
         tilPassword = findViewById(R.id.tilRegPassword);
         tilConfirmPassword = findViewById(R.id.tilRegConfirmPassword);
 
-        // Girdi (EditText) Eşlemeleri
         etName = findViewById(R.id.etRegName);
         etEmail = findViewById(R.id.etRegEmail);
         etPassword = findViewById(R.id.etRegPassword);
@@ -60,7 +58,6 @@ public class RegisterActivity extends AppCompatActivity {
             String password = etPassword.getText().toString().trim();
             String confirmPassword = etConfirmPassword.getText().toString().trim();
 
-            // Önceki tüm hata mesajlarını temizle
             tilName.setError(null);
             tilEmail.setError(null);
             tilPassword.setError(null);
@@ -68,7 +65,6 @@ public class RegisterActivity extends AppCompatActivity {
 
             boolean hasError = false;
 
-            // 🌟 MODERN INPUT DOĞRULAMALARI (Boş bırakılamaz hataları doğrudan kutuların altına yazılır)
             if (name.isEmpty()) {
                 tilName.setError("Full name cannot be left empty");
                 hasError = true;
@@ -88,7 +84,6 @@ public class RegisterActivity extends AppCompatActivity {
 
             if (hasError) return;
 
-            // Şifre mantık kontrolleri
             if (password.length() < 6) {
                 tilPassword.setError("Password must be at least 6 characters");
                 return;
@@ -117,11 +112,9 @@ public class RegisterActivity extends AppCompatActivity {
                         startActivity(new Intent(RegisterActivity.this, MainActivity.class));
                         finish();
                     } else {
-                        // 🌟 Gelişmiş Hata Yakalama: Eğer e-posta zaten kayıtlıysa tetiklenir
                         if (task.getException() instanceof FirebaseAuthUserCollisionException) {
                             tilEmail.setError("This email address is already in use by another account.");
                         } else {
-                            // Diğer beklenmeyen Firebase hataları için genel uyarı
                             tilEmail.setError("Registration failed: " + task.getException().getMessage());
                         }
                     }

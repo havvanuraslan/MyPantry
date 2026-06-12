@@ -44,7 +44,6 @@ public class ProfileActivity extends AppCompatActivity {
     private View btnChangeProfileImage;
     private String encodedImage = "";
 
-    // GALERİDEN FOTOĞRAF SEÇME MOTORU
     private final ActivityResultLauncher<Intent> galleryLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
@@ -78,10 +77,8 @@ public class ProfileActivity extends AppCompatActivity {
         mAuth = FirebaseAuth.getInstance();
         FirebaseUser user = mAuth.getCurrentUser();
 
-        // 🌟 Verilerin cihaza kalıcı yazılması için SharedPreferences ilklendirildi
         sharedPreferences = getSharedPreferences("UserProfilePrefs", Context.MODE_PRIVATE);
 
-        // Girdi Alanlarının Eşlenmesi
         etName = findViewById(R.id.etProfileName);
         etUsername = findViewById(R.id.etProfileUsername);
         etEmail = findViewById(R.id.etProfileEmail);
@@ -104,7 +101,6 @@ public class ProfileActivity extends AppCompatActivity {
         ivProfileImage = findViewById(R.id.ivProfileImage);
         btnChangeProfileImage = findViewById(R.id.btnChangeProfileImage);
 
-        // Cinsiyet Dropdown Elemanları
         AutoCompleteTextView actvGender = findViewById(R.id.actvProfileGender);
         if (actvGender != null) {
             String[] genderOptions = {"Male", "Female", "Other", "Prefer not to say"};
@@ -112,7 +108,6 @@ public class ProfileActivity extends AppCompatActivity {
                     android.R.layout.simple_dropdown_item_1line, genderOptions));
         }
 
-        // Ülke Kodu Dropdown Elemanları
         AutoCompleteTextView actvCountry = findViewById(R.id.actvCountryCode);
         if (actvCountry != null) {
             String[] countryCodes = {"+90", "+1", "+44", "+34"};
@@ -132,19 +127,15 @@ public class ProfileActivity extends AppCompatActivity {
             btnBack.setOnClickListener(v -> finish());
         }
 
-        // 🌟 KESİN ÇÖZÜM: BİLGİLERİN EKRANA GERİ YÜKLENMESİ PROTOKOLÜ
         if (user != null) {
             etEmail.setText(user.getEmail());
 
-            // 1. Ad Soyad (Öncelikli olarak Firebase Auth bulutundan gelir)
             if (user.getDisplayName() != null && !user.getDisplayName().isEmpty()) {
                 etName.setText(user.getDisplayName());
             } else {
-                // Eğer Firebase boş dönerse yerel hafızadan kurtarırız
                 etName.setText(sharedPreferences.getString("saved_name", ""));
             }
 
-            // 2. Özel Girdiler (Doğrudan cihaz hafızasından geri yüklenir)
             etUsername.setText(sharedPreferences.getString("saved_username", ""));
             etPhone.setText(sharedPreferences.getString("saved_phone", ""));
 
@@ -158,7 +149,6 @@ public class ProfileActivity extends AppCompatActivity {
                 actvGender.setText(savedGender, false);
             }
 
-            // 3. Profil Fotoğrafı (Base64 kod çözücü ile kayıpsız yüklenir)
             String savedImage = sharedPreferences.getString("profile_image_base64", "");
             if (!savedImage.isEmpty() && ivProfileImage != null) {
                 byte[] decodedString = Base64.decode(savedImage, Base64.DEFAULT);
@@ -167,7 +157,6 @@ public class ProfileActivity extends AppCompatActivity {
             }
         }
 
-        // DEĞİŞİKLİKLERİ KAYDET MOTORU
         btnSaveProfile.setOnClickListener(v -> {
             tilName.setError(null);
             tilCurrentPassword.setError(null);
@@ -194,12 +183,10 @@ public class ProfileActivity extends AppCompatActivity {
                         .setDisplayName(name)
                         .build();
 
-                // Firebase Profilini Güncelle
                 user.updateProfile(profileUpdates)
                         .addOnCompleteListener(profileTask -> {
                             if (profileTask.isSuccessful()) {
 
-                                // 🌟 VERİLERİ ANINDA VE KİLİTLİ OLARAK KAYDETMEK (commit kullanıldı)
                                 SharedPreferences.Editor editor = sharedPreferences.edit();
                                 editor.putString("saved_name", name);
                                 editor.putString("saved_username", username);
@@ -209,9 +196,8 @@ public class ProfileActivity extends AppCompatActivity {
                                 if (!encodedImage.isEmpty()) {
                                     editor.putString("profile_image_base64", encodedImage);
                                 }
-                                editor.commit(); // Verilerin hemen diske yazılmasını garanti eder
+                                editor.commit();
 
-                                // Şifre Güncelleme Akışı
                                 if (!currentPassword.isEmpty() || !newPassword.isEmpty() || !confirmPassword.isEmpty()) {
                                     if (currentPassword.isEmpty()) {
                                         tilCurrentPassword.setError("Please enter your current password");
